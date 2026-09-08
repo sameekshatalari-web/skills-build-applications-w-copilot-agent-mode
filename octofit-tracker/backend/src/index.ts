@@ -1,4 +1,5 @@
 import express from 'express'
+import { apiBaseUrl } from './config/api.js'
 import { connectDatabase } from './config/database.js'
 import apiRouter from './routes/index.js'
 
@@ -17,6 +18,7 @@ async function startServer(): Promise<void> {
     await connectDatabase()
     app.listen(port, () => {
       console.log(`Octofit API listening on port ${port}`)
+      console.log(`API base URL: ${apiBaseUrl}`)
     })
   } catch (error) {
     console.error('Error connecting to octofit_db:', error)
