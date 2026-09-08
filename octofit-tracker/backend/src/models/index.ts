@@ -3,6 +3,9 @@ import mongoose, { Schema } from 'mongoose';
 const userSchema = new Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
+  displayName: String,
+  bio: String,
+  fitnessGoal: { type: String, default: 'Build consistency' },
   points: { type: Number, default: 0 },
   teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
 }, { timestamps: true });
@@ -36,8 +39,15 @@ const workoutSchema = new Schema({
   tags: [String],
 }, { timestamps: true });
 
+const waterLogSchema = new Schema({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  amountMl: { type: Number, required: true, min: 1 },
+  loggedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
 export const User = mongoose.models.User ?? mongoose.model('User', userSchema);
 export const Team = mongoose.models.Team ?? mongoose.model('Team', teamSchema);
 export const Activity = mongoose.models.Activity ?? mongoose.model('Activity', activitySchema);
 export const Leaderboard = mongoose.models.Leaderboard ?? mongoose.model('Leaderboard', leaderboardSchema);
 export const Workout = mongoose.models.Workout ?? mongoose.model('Workout', workoutSchema);
+export const WaterLog = mongoose.models.WaterLog ?? mongoose.model('WaterLog', waterLogSchema);

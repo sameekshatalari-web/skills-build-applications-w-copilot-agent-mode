@@ -1,122 +1,81 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useState } from 'react'
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { api } from './api'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+const navItems = [
+  { to: '/', label: 'Overview', icon: '✦' },
+  { to: '/activities', label: 'Activities', icon: '↗' },
+  { to: '/teams', label: 'Teams', icon: '◎' },
+  { to: '/leaderboard', label: 'Leaderboard', icon: '♛' },
+  { to: '/workouts', label: 'Workouts', icon: '◒' },
+  { to: '/water', label: 'Water', icon: '≈' },
+  { to: '/profile', label: 'Profile', icon: '◉' },
+]
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function useResource(resource) {
+  const [state, setState] = useState({ data: [], loading: true, error: '' })
+  const load = async () => {
+    setState((current) => ({ ...current, loading: true, error: '' }))
+    try { setState({ data: await api.list(resource), loading: false, error: '' }) }
+    catch (error) { setState({ data: [], loading: false, error: error.message }) }
+  }
+  useEffect(() => { load() }, [resource])
+  return { ...state, reload: load }
 }
+
+function useCurrentUser() {
+  const users = useResource('users')
+  const user = users.data[0] || null
+  return { ...users, user }
+}
+
+function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const userState = useCurrentUser()
+  const [connectionError, setConnectionError] = useState('')
+  useEffect(() => { if (userState.error) setConnectionError(userState.error) }, [userState.error])
+
+  if (connectionError) return <ConnectionError message={connectionError} onRetry={() => { setConnectionError(''); userState.reload() }} />
+
+  return <div className="app-shell">
+    <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+      <div className="brand"><span className="brand-mark">O</span><span>OctoFit <small>TRACKER</small></span></div>
+      <NavLink to="/profile" className="profile-chip" onClick={() => setSidebarOpen(false)}><span className="avatar">{initials(userState.user)}</span><span><strong>{userState.user?.displayName || userState.user?.username || 'Set up profile'}</strong><small>{userState.user?.fitnessGoal || 'Add your details'}</small></span><span className="online-dot" /></NavLink>
+      <nav className="side-nav" aria-label="Main navigation"><p className="nav-label">Your tracker</p>{navItems.map((item) => <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setSidebarOpen(false)}><span className="nav-icon">{item.icon}</span>{item.label}</NavLink>)}</nav>
+      <div className="sidebar-footer"><p>Keep your streak alive</p><div className="streak-line"><span>7 day streak</span><strong>🔥</strong></div><div className="progress"><span style={{ width: '68%' }} /></div></div>
+    </aside>
+    <main className="main-content">
+      <header className="topbar"><button className="menu-button" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle navigation">☰</button><div className="breadcrumb"><strong><CurrentPage /></strong></div><div className="top-actions"><button className="icon-button" type="button" title="Notifications" aria-label="Notifications">♢</button><NavLink className="top-avatar" to="/profile" aria-label="Open profile" title="Open profile">{initials(userState.user)}</NavLink></div></header>
+      <div className="page-content"><Routes><Route path="/" element={<Dashboard user={userState.user} />} /><Route path="/activities" element={<Activities user={userState.user} />} /><Route path="/teams" element={<Teams user={userState.user} />} /><Route path="/leaderboard" element={<Leaderboard />} /><Route path="/workouts" element={<Workouts user={userState.user} />} /><Route path="/water" element={<Water user={userState.user} />} /><Route path="/profile" element={<Profile user={userState.user} onSaved={userState.reload} />} /></Routes></div>
+    </main>
+  </div>
+}
+
+function initials(user) { return String(user?.displayName || user?.username || '?').slice(0, 1).toUpperCase() }
+function CurrentPage() { const location = useLocation(); return navItems.find((item) => item.to === location.pathname)?.label || 'Overview' }
+function ConnectionError({ message, onRetry }) { return <main className="connection-page"><div className="connection-mark">!</div><p className="eyebrow">OctoFit Tracker</p><h1>We cannot reach your tracker right now.</h1><p>{message}. Start the backend API on port 8000, then try again.</p><button className="btn btn-primary" onClick={onRetry}>Try again</button></main> }
+function PageHeader({ eyebrow, title, description, action }) { return <div className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="page-description">{description}</p></div>{action}</div> }
+function LoadingState() { return <div className="state-box"><span className="spinner-border spinner-border-sm" /> Loading your data...</div> }
+function ErrorState({ message, onRetry }) { return <div className="state-box error-state"><strong>Could not load this view</strong><span>{message}</span><button className="btn btn-sm btn-outline-dark" onClick={onRetry}>Try again</button></div> }
+function EmptyState({ label }) { return <div className="state-box"><span className="empty-icon">○</span><strong>No {label} yet</strong><span>Your newest updates will appear here.</span></div> }
+function ResourceState({ resource, children }) { const result = useResource(resource); if (result.loading) return <LoadingState />; if (result.error) return <ErrorState message={result.error} onRetry={result.reload} />; if (!result.data.length) return <EmptyState label={resource} />; return children(result.data, result.reload) }
+function StatCard({ label, value, trend, icon }) { return <div className="stat-card"><span className="stat-icon">{icon}</span><p>{label}</p><strong>{value}</strong><small>{trend}</small></div> }
+function PanelHeading({ title, link, to }) { return <div className="panel-heading"><h2>{title}</h2>{link && <NavLink to={to}>{link} <span>→</span></NavLink>}</div> }
+function ActivityRow({ item }) { return <div className="activity-row"><span className={`activity-icon ${item.type}`}>{item.type?.slice(0, 1).toUpperCase()}</span><div><strong>{item.type || 'Activity'}</strong><p>{item.durationMinutes} minutes · {new Date(item.completedAt || item.createdAt).toLocaleDateString()}</p></div><b>+{item.points} pts</b></div> }
+
+function Dashboard({ user }) { return <><PageHeader eyebrow="Your fitness space" title={user?.displayName ? `Good morning, ${user.displayName}` : 'Welcome to OctoFit'} description={user?.displayName ? 'A small step today keeps your momentum moving.' : 'Complete your profile to make OctoFit yours.'} action={<NavLink className="btn btn-primary action-button" to={user?.displayName ? '/activities' : '/profile'}>{user?.displayName ? '+ Log activity' : 'Complete profile'}</NavLink>} /><ResourceState resource="activities">{(activities) => <ResourceState resource="leaderboard">{(leaders) => <div className="dashboard-grid"><section className="welcome-panel"><div><p className="eyebrow light">YOUR WEEK AT A GLANCE</p><h2>Consistency beats intensity.</h2><p>Track movement, find your people, and build a routine that lasts.</p><NavLink to="/workouts" className="btn btn-light">Find a workout <span>→</span></NavLink></div><div className="ring-stat"><strong>{Math.min(100, activities.length * 20)}</strong><span>%</span><small>weekly goal</small></div></section><div className="stat-row"><StatCard label="Total points" value={(user?.points || 0).toLocaleString()} trend="Keep going" icon="✦" /><StatCard label="Current rank" value={`#${leaders.findIndex((item) => String(item.userId?._id || item.userId) === String(user?._id)) + 1 || '—'}`} trend="All time" icon="♛" /><StatCard label="Active minutes" value={activities.reduce((total, item) => total + (item.durationMinutes || 0), 0)} trend="Logged total" icon="◷" /></div><section className="panel activity-panel"><PanelHeading title="Recent activity" link="View all" to="/activities" /><div className="activity-list">{activities.slice(0, 4).map((item) => <ActivityRow key={item._id} item={item} />)}</div></section><section className="panel goals-panel"><PanelHeading title="Today's focus" /><div className="focus-card"><span className="focus-icon">◒</span><div><strong>Build your base</strong><p>20 min · Beginner</p></div><NavLink to="/workouts" aria-label="Start workout">→</NavLink></div><div className="mini-goal"><span>Weekly goal</span><strong>{Math.min(5, activities.length)} / 5 sessions</strong><div className="progress"><span style={{ width: `${Math.min(100, activities.length * 20)}%` }} /></div></div></section></div>}</ResourceState>}</ResourceState></> }
+
+function Activities({ user }) { const [showForm, setShowForm] = useState(false); const [notice, setNotice] = useState(''); const [formError, setFormError] = useState(''); const [saving, setSaving] = useState(false); const resource = useResource('activities'); const submit = async (event) => { event.preventDefault(); setFormError(''); const form = new FormData(event.currentTarget); const duration = Number(form.get('durationMinutes')); if (!user?._id) { setFormError('Complete your profile before logging an activity.'); return } if (!form.get('type') || !duration || duration < 1) { setFormError('Choose an activity and enter a duration of at least 1 minute.'); return } setSaving(true); try { await api.create('activities', { userId: user._id, type: form.get('type'), durationMinutes: duration, points: duration * 4, completedAt: form.get('completedAt') }); setNotice('Activity logged. Nice work.'); setShowForm(false); resource.reload() } catch (error) { setFormError(error.message) } finally { setSaving(false) } }; return <><PageHeader eyebrow="Movement log" title="Activities" description="Every session counts. Keep your record honest and your streak growing." action={<button className="btn btn-primary action-button" onClick={() => setShowForm(!showForm)}>+ Log activity</button>} />{notice && <div className="alert alert-success">{notice}</div>}{showForm && <form className="panel form-panel" onSubmit={submit}><PanelHeading title="Log a new activity" /><div className="form-grid"><label>Activity type<select name="type" defaultValue=""><option value="" disabled>Select one</option><option>running</option><option>walking</option><option>strength</option><option>cycling</option></select></label><label>Duration (minutes)<input name="durationMinutes" type="number" min="1" placeholder="30" /></label><label>Date<input name="completedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label></div>{formError && <div className="form-error">{formError}</div>}<div className="form-actions"><button type="button" className="btn btn-light" onClick={() => setShowForm(false)}>Cancel</button><button className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save activity'}</button></div></form>}<div className="panel"><PanelHeading title="Activity history" /><ResourceState resource="activities">{(items) => <div className="activity-list full-list">{items.map((item) => <ActivityRow key={item._id} item={item} />)}</div>}</ResourceState></div></> }
+
+function Teams({ user }) { const [showCreate, setShowCreate] = useState(false); const [selectedTeam, setSelectedTeam] = useState(null); const [notice, setNotice] = useState(''); const [error, setError] = useState(''); const resource = useResource('teams'); const createTeam = async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); if (!form.get('name')) { setError('Enter a team name.'); return } try { await api.create('teams', { name: form.get('name'), description: form.get('description'), memberIds: user?._id ? [user._id] : [] }); setNotice('Team created and joined.'); setShowCreate(false); resource.reload() } catch (requestError) { setError(requestError.message) } }; const joinTeam = async (team) => { if (!user?._id) { setError('Complete your profile before joining a team.'); return } try { const memberIds = [...new Set([...(team.memberIds || []).map(String), user._id])]; await api.update('teams', team._id, { memberIds }); setNotice(`You joined ${team.name}.`); resource.reload() } catch (requestError) { setError(requestError.message) } }; const isJoined = (team) => Boolean(user?._id && (team.memberIds || []).some((memberId) => String(memberId) === String(user._id))); return <><PageHeader eyebrow="Find your people" title="Teams" description="Friendly competition, shared goals, better habits." action={<button className="btn btn-primary action-button" onClick={() => setShowCreate(!showCreate)}>+ Create team</button>} />{notice && <div className="alert alert-success">{notice}</div>}{error && <div className="form-error">{error}</div>}{showCreate && <form className="panel form-panel" onSubmit={createTeam}><PanelHeading title="Create a team" /><div className="form-grid"><label>Team name<input name="name" placeholder="Morning Movers" /></label><label>Description<input name="description" placeholder="What brings your team together?" /></label></div><div className="form-actions"><button type="submit" className="btn btn-primary">Create team</button></div></form>}{selectedTeam && <section className="panel selected-team"><PanelHeading title={selectedTeam.name} link="Close" to="/teams" /><p>{selectedTeam.description || 'Your team space.'}</p><strong>{selectedTeam.memberIds?.length || 0} members are moving together.</strong></section>}<ResourceState resource="teams">{(teams) => <div className="team-grid">{teams.map((team, index) => <article className="team-card" key={team._id}><div className={`team-banner banner-${index % 3}`}><span>{team.name.slice(0, 2).toUpperCase()}</span><small>{team.memberIds?.length || 0} members</small></div><div className="team-body"><h2>{team.name}</h2><p>{team.description || 'A team that moves together.'}</p><div className="team-meta"><span>{isJoined(team) ? '✓ Joined' : `◉ ${team.memberIds?.length || 0} members`}</span>{isJoined(team) ? <button className="btn btn-sm btn-outline-dark" onClick={() => setSelectedTeam(team)}>View team</button> : <button className="btn btn-sm btn-outline-dark" onClick={() => joinTeam(team)}>Join team</button>}</div></div></article>)}</div>}</ResourceState></> }
+
+function Leaderboard() { return <><PageHeader eyebrow="Friendly competition" title="Leaderboard" description="See how your consistency stacks up this season." action={<select className="period-select" aria-label="Leaderboard period"><option>All time</option><option>This month</option><option>This week</option></select>} /><ResourceState resource="leaderboard">{(items) => <div className="panel leaderboard-panel"><div className="podium">{items.slice(0, 3).map((item, index) => <div className={`podium-place place-${index + 1}`} key={item._id}><span className="podium-avatar">{initials(item.userId)}</span><strong>{item.userId?.displayName || item.userId?.username || 'OctoFit member'}</strong><small>{item.points} points</small><b>#{item.rank}</b></div>)}</div><div className="leaderboard-list">{items.map((item) => <div className="leader-row" key={item._id}><strong>#{item.rank}</strong><span className="tiny-avatar">{initials(item.userId)}</span><span>{item.userId?.displayName || item.userId?.username || 'OctoFit member'}</span><b>{item.points} pts</b></div>)}</div></div>}</ResourceState></> }
+
+function Workouts({ user }) { const [filter, setFilter] = useState('all'); const [loggingWorkout, setLoggingWorkout] = useState(null); const [notice, setNotice] = useState(''); const [error, setError] = useState(''); const completeWorkout = async (event) => { event.preventDefault(); if (!user?._id) { setError('Complete your profile before logging a workout.'); return } const form = new FormData(event.currentTarget); const duration = Number(form.get('durationMinutes')); if (!duration || duration < 1) { setError('Enter the number of minutes you actually completed.'); return } try { await api.create('activities', { userId: user._id, type: loggingWorkout.title, durationMinutes: duration, points: duration * 4, completedAt: form.get('completedAt') }); setNotice(`${loggingWorkout.title} logged for ${duration} minutes.`); setLoggingWorkout(null); setError('') } catch (requestError) { setError(requestError.message) } }; return <><PageHeader eyebrow="Personalized for you" title="Workouts" description="Choose a session, complete it in real life, then record what you actually did." />{notice && <div className="alert alert-success">{notice}</div>}{error && <div className="form-error">{error}</div>}<div className="filter-tabs">{['all', 'beginner', 'intermediate', 'advanced'].map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>{loggingWorkout && <form className="panel form-panel completion-panel" onSubmit={completeWorkout}><PanelHeading title={`Record ${loggingWorkout.title}`} /><p>Finished the session? Enter what you actually completed. The planned duration is {loggingWorkout.durationMinutes} minutes.</p><div className="form-grid"><label>Minutes completed<input name="durationMinutes" type="number" min="1" placeholder={String(loggingWorkout.durationMinutes)} /></label><label>Date completed<input name="completedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label></div><div className="form-actions"><button type="button" className="btn btn-light" onClick={() => setLoggingWorkout(null)}>Cancel</button><button className="btn btn-primary">Log completed workout</button></div></form>}<ResourceState resource="workouts">{(items) => <div className="workout-grid">{items.filter((item) => filter === 'all' || item.difficulty === filter).map((item) => <article className="workout-card" key={item._id}><div className="workout-art"><span>{item.difficulty === 'beginner' ? '◒' : item.difficulty === 'advanced' ? '✦' : '◌'}</span><small>{item.durationMinutes} min plan</small></div><div className="workout-body"><span className="difficulty">{item.difficulty}</span><h2>{item.title}</h2><p>{item.description}</p><button className="btn btn-dark w-100" onClick={() => { setLoggingWorkout(item); setNotice('') }}>Record completed session <span>→</span></button></div></article>)}</div>}</ResourceState></> }
+
+function Water({ user }) { const [amount, setAmount] = useState('250'); const [notice, setNotice] = useState(''); const [error, setError] = useState(''); const resource = useResource('water-logs'); const addWater = async (event) => { event.preventDefault(); const amountMl = Number(amount); if (!user?._id) { setError('Complete your profile before tracking water.'); return } if (!amountMl || amountMl < 1) { setError('Enter an amount greater than zero.'); return } try { await api.create('water-logs', { userId: user._id, amountMl, loggedAt: new Date().toISOString() }); setNotice(`${amountMl} ml added to today's intake.`); setAmount('250'); resource.reload() } catch (requestError) { setError(requestError.message) } }; const today = resource.data.filter((item) => new Date(item.loggedAt).toDateString() === new Date().toDateString()); const total = today.reduce((sum, item) => sum + item.amountMl, 0); return <><PageHeader eyebrow="Daily hydration" title="Water intake" description="Track what you drink so your recovery habits are visible too." /><div className="water-layout"><section className="panel water-summary"><span className="water-drop">≈</span><p>Today's intake</p><strong>{total.toLocaleString()} <small>ml</small></strong><div className="progress"><span style={{ width: `${Math.min(100, total / 25)}%` }} /></div><small>{Math.max(0, 2500 - total).toLocaleString()} ml to a 2,500 ml guide</small></section><form className="panel water-form" onSubmit={addWater}><PanelHeading title="Add water" /><label>Amount<input type="number" min="1" step="50" value={amount} onChange={(event) => setAmount(event.target.value)} /></label><div className="quick-amounts">{[250, 500, 750].map((value) => <button type="button" key={value} onClick={() => setAmount(String(value))}>{value} ml</button>)}</div>{notice && <div className="alert alert-success">{notice}</div>}{error && <div className="form-error">{error}</div>}<button className="btn btn-primary" type="submit">Log water</button></form></div><section className="panel"><PanelHeading title="Today's entries" />{resource.loading ? <LoadingState /> : resource.error ? <ErrorState message={resource.error} onRetry={resource.reload} /> : today.length ? <div className="activity-list">{today.map((item) => <div className="activity-row" key={item._id}><span className="activity-icon walking">≈</span><div><strong>Water</strong><p>{new Date(item.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p></div><b>{item.amountMl} ml</b></div>)}</div> : <EmptyState label="water entries" />}</section></> }
+
+function Profile({ user, onSaved }) { const [form, setForm] = useState({ displayName: user?.displayName || '', email: user?.email || '', bio: user?.bio || '', fitnessGoal: user?.fitnessGoal || 'Build consistency' }); const [status, setStatus] = useState(''); const [error, setError] = useState(''); useEffect(() => { setForm({ displayName: user?.displayName || '', email: user?.email || '', bio: user?.bio || '', fitnessGoal: user?.fitnessGoal || 'Build consistency' }) }, [user]); const save = async (event) => { event.preventDefault(); setError(''); if (!form.displayName.trim() || !form.email.trim()) { setError('Display name and email are required.'); return } try { await api.update('users', user._id, form); setStatus('Profile saved.'); onSaved() } catch (requestError) { setError(requestError.message) } }; return <><PageHeader eyebrow="Your account" title={user?.displayName ? 'Profile' : 'Set up your profile'} description="Tell OctoFit a little about you so your tracker feels personal." /><div className="profile-layout"><section className="panel profile-card"><div className="large-avatar">{initials(user)}</div><h2>{user?.displayName || 'Your name'}</h2><p>{user?.email || 'Add your email address'}</p><span className="member-since">Personal profile</span></section><form className="panel profile-form" onSubmit={save}><PanelHeading title="Personal details" /><label>Display name<input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} placeholder="Alex Morgan" /></label><label>Email address<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="alex@example.com" /></label><label>Fitness goal<select value={form.fitnessGoal} onChange={(event) => setForm({ ...form, fitnessGoal: event.target.value })}><option>Build consistency</option><option>Get stronger</option><option>Improve endurance</option></select></label><label>About you<textarea value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} placeholder="What are you working toward?" rows="4" /></label>{status && <div className="alert alert-success">{status}</div>}{error && <div className="form-error">{error}</div>}<button className="btn btn-primary" type="submit">Save profile</button></form></div></> }
 
 export default App

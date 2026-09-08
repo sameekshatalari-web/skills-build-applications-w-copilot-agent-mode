@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Activity, Leaderboard, Team, User, Workout } from '../models/index.js';
+import { Activity, Leaderboard, Team, User, WaterLog, Workout } from '../models/index.js';
 import { connectionString, disconnectDatabase } from '../config/database.js';
 
 /**
@@ -17,6 +17,7 @@ async function seedDatabase() {
       Activity.deleteMany({}),
       Leaderboard.deleteMany({}),
       Workout.deleteMany({}),
+      WaterLog.deleteMany({}),
     ]);
 
     const users = await User.create([
@@ -44,7 +45,11 @@ async function seedDatabase() {
     await Workout.create([
       { title: 'Quick Cardio', description: 'A brisk cardio session for busy days.', difficulty: 'beginner', durationMinutes: 20, tags: ['cardio', 'quick'] },
       { title: 'Full Body Circuit', description: 'A balanced strength and conditioning circuit.', difficulty: 'intermediate', durationMinutes: 35, tags: ['strength', 'full-body'] },
+      { title: 'Mobility Reset', description: 'Gentle mobility work for hips, shoulders, and spine.', difficulty: 'beginner', durationMinutes: 15, tags: ['mobility', 'recovery'] },
+      { title: 'Interval Run', description: 'A structured run with short efforts and recovery periods.', difficulty: 'advanced', durationMinutes: 30, tags: ['cardio', 'running'] },
+      { title: 'Core Builder', description: 'A focused core session using controlled bodyweight movements.', difficulty: 'intermediate', durationMinutes: 25, tags: ['strength', 'core'] },
     ]);
+    await WaterLog.create({ userId: users[0]._id, amountMl: 500, loggedAt: new Date() });
 
     console.log('Database seeding complete');
     await disconnectDatabase();

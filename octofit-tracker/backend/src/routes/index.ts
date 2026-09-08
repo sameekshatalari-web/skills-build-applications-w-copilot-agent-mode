@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { SortOrder } from 'mongoose';
-import { Activity, Leaderboard, Team, User, Workout } from '../models/index.js';
+import { Activity, Leaderboard, Team, User, WaterLog, Workout } from '../models/index.js';
 
 const router = Router();
 
@@ -10,13 +10,18 @@ const resources = [
   ['activities', Activity],
   ['leaderboard', Leaderboard],
   ['workouts', Workout],
+  ['water-logs', WaterLog],
 ] as const;
 
 for (const [name, model] of resources) {
   router.get(`/${name}`, async (_request, response, next) => {
     try {
       const sort: Record<string, SortOrder> = name === 'leaderboard' ? { points: -1 } : { createdAt: -1 };
-      response.json(await model.find().sort(sort));
+      let query = model.find().sort(sort);
+      if (name === 'leaderboard') query = query.populate('userId', 'username displayName email');
+      if (name === 'activities') query = query.populate('userId', 'username displayName');
+      if (name === 'water-logs') query = query.populate('userId', 'username displayName');
+      response.json(await query);
     } catch (error) {
       next(error);
     }
@@ -32,7 +37,11 @@ for (const [name, model] of resources) {
 
   router.get(`/${name}/:id`, async (request, response, next) => {
     try {
-      const item = await model.findById(request.params.id);
+      let query = model.findById(request.params.id);
+      if (name === 'leaderboard') query = query.populate('userId', 'username displayName email');
+      if (name === 'activities') query = query.populate('userId', 'username displayName');
+      if (name === 'water-logs') query = query.populate('userId', 'username displayName');
+      const item = await query;
       if (!item) {
         response.status(404).json({ error: `${name} item not found` });
         return;
